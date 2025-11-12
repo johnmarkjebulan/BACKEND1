@@ -11,7 +11,7 @@ const corsOptions = { origin: process.env.ORIGIN };
 
 app.use(express.json());
 app.use(cors(corsOptions));
-
+command:gitlens.showHomeView
 app.use((req, res, next) => {
   console.log(req.path, req.method);
   next();
