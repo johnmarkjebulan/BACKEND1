@@ -1,35 +1,94 @@
-import pool from '../config/db.js';
-export const createUser = async (email, password) =>{
-    if (email === ''){
-        throw new Error('invalid email, paki ayos utoy ');
+import pool from './db.js';
+import validator from "validator";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+// CREATE USER
+export const createUser = async (email, password) => {
+
+    if (!email || !validator.isEmail(email)) {
+        throw new Error('Invalid Email');
     }
 
- if(!validator.isEmail(email)){
-    throw new Error('Andaming Problema Invalid Format');
+    if (!password) {
+        throw new Error('Invalid Password');
+    }
+
+    if (!validator.isStrongPassword(password)) {
+        throw new Error('Password too weak');
+    }
+
+    // Check if email already exists
+    const [user] = await pool.query(
+        'SELECT * FROM tbluser WHERE email = ?',
+        [email]
+    );
+
+    if (user.length === 1) {
+        throw new Error('An account is already created with that email');
+    }
+
+    // Hash password
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(password, salt);
+
+    // Insert new user
+    const [newUser] = await pool.query(
+        'INSERT INTO tbluser (email, password) VALUES (?, ?)',
+        [email, hashedPassword]
+    );
+
+    return newUser.insertId;
+};
+
+
+
+// GET USER BY ID
+export const getUser = async (id) => {
+
+    if (isNaN(parseInt(id))) {
+        throw new Error('Invalid User ID');
+    }
+
+    // Correct query: select by ID (you used email before)
+    const [user] = await pool.query(
+        'SELECT * FROM tbluser WHERE id = ?',
+        [id]
+    );
+
+    return user;
+};
+
+
+
+// LOGIN
+export const login = async (email, password) => {
+
+    if (!email || !password) {
+        throw new Error('Email and password are required');
     }
 
     const [user] = await pool.query(
-        "SELECT * FROM tbl_user WHERE email = ?",
+        'SELECT * FROM tbluser WHERE email = ?',
         [email]
-    )
+    );
 
-    if (user){
-        throw new Error ('An account is already craeted with that email (gaya pa!)')
+    if (user.length === 0) {
+        throw new Error(`An account with email: ${email} does not exist`);
     }
 
-    if(password === ''){
-        throw new Error('Invalid password');
-
+    // Check password
+    const validPass = bcrypt.compareSync(password, user[0].password);
+    if (!validPass) {
+        throw new Error('Incorrect password');
     }
-    if(validator.isStrongPassword(password));
-        throw new Error('Password too weak');
-   }
-    const salt = bcrypt.genSaltSync(10);
-    const newPassword = bcrypt.hashSync(password, salt);
 
-    conts [newUser] = await pool.query(
-        "INSERT INTO tbl_user(email, password) VALUES (?,?)",
-        [email, password]
-    )
+    // Generate token
+    const token = jwt.sign(
+        { id: user[0].id },
+        process.env.SECRET,
+        { expiresIn: '1d' }
+    );
 
-return  newUser.insertId;
+    return { token, userId: user[0].id };
+};

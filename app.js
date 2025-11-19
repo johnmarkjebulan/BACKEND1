@@ -11,12 +11,17 @@ const corsOptions = { origin: process.env.ORIGIN };
 
 app.use(express.json());
 app.use(cors(corsOptions));
-command:gitlens.showHomeView
+
+// This line was causing the error and is not valid in Node
+// command:gitlens.showHomeView
+
+// Logger middleware
 app.use((req, res, next) => {
   console.log(req.path, req.method);
   next();
 });
 
+// Routes
 app.use("/book", bookRoutes);
 app.use("/tbl_student", studentRoutes);
 
